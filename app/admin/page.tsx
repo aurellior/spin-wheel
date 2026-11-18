@@ -1,10 +1,11 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { ADMIN_COOKIE_NAME, verifyAdminToken } from "@/lib/auth";
 import { getAdminState } from "@/lib/server-store";
 
-export default async function AdminPage() {
+async function AdminGate() {
   const cookieStore = await cookies();
   const session = await verifyAdminToken(
     cookieStore.get(ADMIN_COOKIE_NAME)?.value
@@ -21,5 +22,19 @@ export default async function AdminPage() {
       initialState={initialState}
       adminUsername={session.username}
     />
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 text-slate-400 text-sm">
+          Memuat Admin Control Panel...
+        </div>
+      }
+    >
+      <AdminGate />
+    </Suspense>
   );
 }
