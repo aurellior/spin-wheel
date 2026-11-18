@@ -46,7 +46,7 @@ function loadStateFromDisk(): WheelServerState {
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, "utf-8");
       const parsed = JSON.parse(raw) as Partial<WheelServerState>;
-      if (Array.isArray(parsed.options) && parsed.options.length >= 2) {
+      if (Array.isArray(parsed.options)) {
         return {
           options: parsed.options.filter(
             (o): o is WheelOption =>
@@ -127,10 +127,6 @@ export function updateOptions(nextOptions: WheelOption[]): WheelServerState {
       id: o.id,
       text: o.text.slice(0, 45),
     }));
-
-  if (sanitized.length < 2) {
-    return store.state;
-  }
 
   // Jika target terpilih sudah dihapus oleh user, reset forcedWinnerId ke null
   const targetStillExists = store.state.forcedWinnerId

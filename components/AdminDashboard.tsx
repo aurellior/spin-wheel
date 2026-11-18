@@ -236,8 +236,13 @@ export function AdminDashboard({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {state.options.map((opt, idx) => {
+          {state.options.length === 0 ? (
+            <div className="py-10 px-4 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-xs sm:text-sm text-slate-400">
+              Belum ada opsi yang ditambahkan oleh User.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {state.options.map((opt, idx) => {
               const color = getSegmentColor(idx, state.options.length);
               const isSelected = state.forcedWinnerId === opt.id;
               const label = opt.text.trim() || `Opsi ${idx + 1}`;
@@ -279,7 +284,8 @@ export function AdminDashboard({
                 </button>
               );
             })}
-          </div>
+            </div>
+          )}
         </section>
 
         {/* Riwayat Putaran */}

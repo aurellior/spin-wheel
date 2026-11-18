@@ -62,19 +62,16 @@ export function OptionsEditor({
       .map((line) => line.trim())
       .filter((line) => line.length > 0);
 
-    if (lines.length < 2) {
-      setBulkWarning("Ketik minimal 2 baris opsi agar roda diperbarui");
-      return;
-    }
-
-    setBulkWarning(null);
+    setBulkWarning(
+      lines.length === 1 ? "Tambahkan minimal 2 baris opsi untuk memutar roda" : null
+    );
     onBulkUpdate(lines);
   };
 
   const handleClearBulk = () => {
     if (isSpinning) return;
     onClearBulk();
-    setBulkText("Opsi 1\nOpsi 2");
+    setBulkText("");
     setBulkWarning(null);
   };
 
@@ -177,7 +174,13 @@ export function OptionsEditor({
               ref={listContainerRef}
               className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar"
             >
-              {options.map((opt, index) => {
+              {options.length === 0 ? (
+                <div className="py-8 px-4 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-xs sm:text-sm text-slate-400">
+                  Daftar opsi masih kosong. Tambahkan minimal 2 opsi di bawah
+                  untuk memutar roda.
+                </div>
+              ) : (
+                options.map((opt, index) => {
                 const color = getSegmentColor(index, options.length);
                 return (
                   <div key={opt.id} className="flex items-center gap-2 group">
@@ -215,7 +218,8 @@ export function OptionsEditor({
                     </button>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-100 flex gap-2">
@@ -280,7 +284,7 @@ export function OptionsEditor({
                 onClick={handleClearBulk}
                 className="text-rose-600 hover:underline font-medium disabled:opacity-50 cursor-pointer"
               >
-                Kosongkan ke 2 Opsi
+                Kosongkan Daftar
               </button>
             </div>
           </div>

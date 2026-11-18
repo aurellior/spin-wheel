@@ -329,10 +329,6 @@ function SpinWheelClient() {
 
   const handleRemoveOption = (id: string) => {
     if (isSpinning) return false;
-    if (options.length <= 2) {
-      showToast("Minimal harus ada 2 opsi di dalam roda.", "warning");
-      return false;
-    }
 
     const next = options.filter((opt) => opt.id !== id);
     setOptions(next);
@@ -352,13 +348,10 @@ function SpinWheelClient() {
 
   const handleClearBulk = () => {
     if (isSpinning) return;
-    const next = [
-      { id: generateOptionId(), text: "Opsi 1" },
-      { id: generateOptionId(), text: "Opsi 2" },
-    ];
+    const next: WheelOption[] = [];
     setOptions(next);
     pushOptionsToServer(next);
-    showToast("Daftar diatur ulang menjadi 2 opsi dasar.", "info");
+    showToast("Daftar opsi dikosongkan.", "info");
   };
 
   const handleShuffle = () => {

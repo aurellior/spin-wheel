@@ -23,12 +23,6 @@ export async function POST(request: Request) {
     }
 
     if (Array.isArray(body.options)) {
-      if (body.options.length < 2) {
-        return NextResponse.json(
-          { error: "Minimal harus ada 2 opsi." },
-          { status: 400 }
-        );
-      }
       updateOptions(body.options);
       return NextResponse.json(getPublicState());
     }

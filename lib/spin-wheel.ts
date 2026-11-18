@@ -39,14 +39,7 @@ export const SEGMENT_PALETTE = [
   "#D946EF", // Fuchsia
 ];
 
-export const DEFAULT_OPTIONS = [
-  "Hadiah Utama",
-  "Voucher 100K",
-  "Kopi Gratis",
-  "Diskon 50%",
-  "Bonus Spesial",
-  "Coba Lagi",
-];
+export const DEFAULT_OPTIONS: string[] = [];
 
 export function generateOptionId(): string {
   return (

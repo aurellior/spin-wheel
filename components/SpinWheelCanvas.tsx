@@ -46,9 +46,6 @@ export function SpinWheelCanvas({
     ctx.clearRect(0, 0, size, size);
 
     const count = options.length;
-    if (count === 0) return;
-
-    const sliceAngle = (Math.PI * 2) / count;
 
     // 1. Bingkai Luar (Outer Rim)
     ctx.save();
@@ -60,6 +57,21 @@ export function SpinWheelCanvas({
     ctx.strokeStyle = "#CBD5E1";
     ctx.stroke();
     ctx.restore();
+
+    if (count === 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(center, center, wheelRadius, 0, Math.PI * 2);
+      ctx.fillStyle = "#F1F5F9";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#CBD5E1";
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    const sliceAngle = (Math.PI * 2) / count;
 
     // 2. Segmen Roda
     for (let i = 0; i < count; i++) {
