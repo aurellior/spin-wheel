@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roda Undian Interaktif - Wheel Spin</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          keyframes: {
+            popBounce: {
+              '0%': { opacity: '0', transform: 'scale(0.65) translateY(16px)' },
+              '65%': { opacity: '1', transform: 'scale(1.04) translateY(-4px)' },
+              '85%': { transform: 'scale(0.98) translateY(1px)' },
+              '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            }
+          },
+          animation: {
+            'pop-bounce': 'popBounce 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+            'fade-in': 'fadeIn 0.25s ease-out forwards',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Custom scrollbar yang rapi untuk daftar opsi */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Transisi halus untuk akordeon pengaturan opsional */
+    .accordion-content {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.3s ease-out;
+    }
+    .accordion-content.open {
+      grid-template-rows: 1fr;
+    }
+    .accordion-inner {
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-100 selection:text-indigo-700">
+
+  <!-- Canvas Overlay untuk Efek Konfeti -->
+  <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50 w-full h-full"></canvas>
+
+  <!-- Header Navigasi -->
+  <header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+          <!-- Ikon Roda SVG -->
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M12 3v6.5M12 14.5V21M3 12h6.5M14.5 12H21M5.64 5.64l4.6 4.6M13.76 13.76l4.6 4.6M18.36 5.64l-4.6 4.6M10.24 13.76l-4.6 4.6" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 leading-none">
+            Roda Undian
+          </h1>
+          <p class="text-xs text-slate-500 mt-0.5 hidden sm:block">Putar roda keberuntungan & tentukan pilihan</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <!-- Lencana Jumlah Opsi Aktif -->
+        <span id="optionCountBadge" class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+          6 Opsi Aktif
+        </span>
+
+        <!-- Tombol Mute / Unmute Suara -->
+        <button
+          id="soundToggleBtn"
+          type="button"
+          title="Aktifkan/Matikan Efek Suara"
+          class="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition active:scale-95 flex items-center gap-1.5 text-xs font-medium shadow-sm"
+        >
+          <svg id="soundOnIcon" class="w-4 h-4 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+          <svg id="soundOffIcon" class="w-4 h-4 text-slate-400 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </svg>
+          <span id="soundLabel" class="hidden sm:inline">Suara Aktif</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Konten Utama: Layout 2 Kolom -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+
+      <!-- KOLOM KIRI: Area Roda Putar (7 kolom di desktop) -->
+      <section class="lg:col-span-7 bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden">
+        <!-- Dekorasi latar halus -->
+        <div class="absolute -top-24 -left-24 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-70 pointer-events-none"></div>
+        <div class="absolute -bottom-24 -right-24 w-64 h-64 bg-violet-50 rounded-full blur-3xl opacity-70 pointer-events-none"></div>
+
+        <!-- Kontainer Roda Responsif -->
+        <div id="wheelContainer" class="relative w-full max-w-[440px] aspect-square flex items-center justify-center my-2 select-none">
+
+          <!-- Jarum Penunjuk (Pointer) di Bagian Atas Roda -->
+          <div
+            id="wheelPointer"
+            style="transform: translateX(-50%) rotate(0deg); transform-origin: 50% 18%;"
+            class="absolute -top-3 sm:-top-4 left-1/2 z-20 pointer-events-none drop-shadow-[0_6px_8px_rgba(15,23,42,0.28)] transition-none"
+          >
+            <svg class="w-10 h-12 sm:w-12 sm:h-14" viewBox="0 0 48 56" fill="none">
+              <!-- Badan Jarum -->
+              <path d="M24 54L6 18C6 8.05887 14.0589 0 24 0C33.9411 0 42 8.05887 42 18L24 54Z" fill="#1E293B"/>
+              <path d="M24 49L9.5 18.5C9.5 10.4919 15.9919 4 24 4C32.0081 4 38.5 10.4919 38.5 18.5L24 49Z" fill="url(#pointerGrad)"/>
+              <!-- Pin Poros Tengah Jarum -->
+              <circle cx="24" cy="17" r="6" fill="#F8FAFC"/>
+              <circle cx="24" cy="17" r="3" fill="#334155"/>
+              <defs>
+                <linearGradient id="pointerGrad" x1="24" y1="4" x2="24" y2="49" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#F43F5E"/>
+                  <stop offset="1" stop-color="#BE123C"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+          <!-- Canvas Utama Roda -->
+          <canvas id="wheelCanvas" class="w-full h-full block rounded-full"></canvas>
+
+          <!-- Tombol Tengah Roda (Hub) -->
+          <button
+            id="centerSpinBtn"
+            type="button"
+            aria-label="Putar Roda"
+            class="absolute z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-b from-slate-800 to-slate-950 text-white font-extrabold text-sm sm:text-base tracking-wider shadow-[0_8px_20px_rgba(15,23,42,0.45)] border-4 border-white flex flex-col items-center justify-center transition-transform duration-150 hover:scale-105 active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed disabled:hover:scale-100 cursor-pointer"
+          >
+            <span>PUTAR</span>
+          </button>
+        </div>
+
+        <!-- Tombol Utama Putar di Bawah Roda -->
+        <div class="mt-6 w-full max-w-sm flex flex-col items-center gap-2 relative z-10">
+          <button
+            id="mainSpinBtn"
+            type="button"
+            class="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-base sm:text-lg shadow-lg shadow-indigo-200/80 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 cursor-pointer"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+            <span id="mainSpinBtnText">PUTAR RODA SEKARANG</span>
+          </button>
+          <p class="text-xs text-slate-400">
+            Tips: Klik tombol <span class="font-semibold text-slate-500">PUTAR</span> di tengah roda atau tekan <kbd class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[11px] font-mono text-slate-600">Spasi</kbd>
+          </p>
+        </div>
+
+        <!-- Riwayat Putaran Terakhir -->
+        <div id="historySection" class="mt-5 w-full max-w-md hidden relative z-10">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Riwayat Terakhir</span>
+            <button
+              id="clearHistoryBtn"
+              type="button"
+              class="text-xs font-medium text-slate-400 hover:text-rose-600 transition cursor-pointer"
+            >
+              Bersihkan
+            </button>
+          </div>
+          <div id="historyList" class="flex flex-wrap gap-1.5"></div>
+        </div>
+      </section>
+
+      <!-- KOLOM KANAN: Panel Kustomisasi Opsi & Pengaturan Target (5 kolom di desktop) -->
+      <aside class="lg:col-span-5 flex flex-col gap-5">
+
+        <!-- Kartu Editor Opsi -->
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h2 class="text-base sm:text-lg font-bold text-slate-900">Daftar Opsi Roda</h2>
+
+            <!-- Tombol Bantu: Acak Urutan & Reset -->
+            <div class="flex items-center gap-1.5">
+              <button
+                id="shuffleBtn"
+                type="button"
+                title="Acak urutan opsi"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-slate-200/80 text-slate-700 transition flex items-center gap-1 active:scale-95"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <polyline points="16 3 21 3 21 8"></polyline>
+                  <line x1="4" y1="20" x2="21" y2="3"></line>
+                  <polyline points="21 16 21 21 16 21"></polyline>
+                  <line x1="15" y1="15" x2="21" y2="21"></line>
+                  <line x1="4" y1="4" x2="9" y2="9"></line>
+                </svg>
+                Acak Urutan
+              </button>
+              <button
+                id="resetBtn"
+                type="button"
+                title="Kembalikan ke opsi bawaan"
+                class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 transition flex items-center gap-1 active:scale-95"
+              >
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                  <path d="M3 3v5h5"></path>
+                </svg>
+                Reset Default
+              </button>
+            </div>
+          </div>
+
+          <!-- Navigasi Tab: Daftar Opsi vs Edit Cepat -->
+          <div class="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-4">
+            <button
+              id="tabListBtn"
+              type="button"
+              class="py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold bg-white text-indigo-600 shadow-sm transition"
+            >
+              Daftar Opsi
+            </button>
+            <button
+              id="tabBulkBtn"
+              type="button"
+              class="py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 transition"
+            >
+              Edit Cepat (Per Baris)
+            </button>
+          </div>
+
+          <!-- MODE 1: Daftar Opsi Individual -->
+          <div id="listEditorPanel">
+            <div id="optionsListContainer" class="space-y-2 max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
+              <!-- Baris input opsi dirender melalui JavaScript -->
+            </div>
+
+            <!-- Form / Tombol Tambah Opsi Baru -->
+            <div class="mt-4 pt-3 border-t border-slate-100 flex gap-2">
+              <input
+                id="newOptionInput"
+                type="text"
+                maxlength="45"
+                placeholder="Ketik opsi baru lalu Enter..."
+                class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition"
+              />
+              <button
+                id="addOptionBtn"
+                type="button"
+                class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition active:scale-95 shrink-0 flex items-center gap-1"
+              >
+                <span>+ Tambah Opsi</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- MODE 2: Edit Cepat (Textarea Per Baris) -->
+          <div id="bulkEditorPanel" class="hidden">
+            <label for="bulkTextarea" class="block text-xs text-slate-500 mb-2">
+              Masukkan satu opsi per baris (minimal 2 opsi). Perubahan otomatis tersinkronisasi dengan roda:
+            </label>
+            <textarea
+              id="bulkTextarea"
+              rows="10"
+              placeholder="Contoh:&#10;Hadiah Utama&#10;Voucher Belanja&#10;Kopi Gratis&#10;Coba Lagi"
+              class="w-full p-3.5 rounded-xl border border-slate-200 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 custom-scrollbar resize-y"
+            ></textarea>
+            <div class="mt-2 flex items-center justify-between text-xs text-slate-500">
+              <span id="bulkLineHint">Minimal 2 baris opsi aktif</span>
+              <button
+                id="clearBulkBtn"
+                type="button"
+                class="text-rose-600 hover:underline font-medium"
+              >
+                Kosongkan ke 2 Opsi
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kartu Pengaturan Hasil (Opsional & Rahasia / Collapsible) -->
+        <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <button
+            id="targetAccordionBtn"
+            type="button"
+            aria-expanded="false"
+            class="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50/80 transition"
+          >
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+              </div>
+              <div>
+                <span class="text-sm font-bold text-slate-800 block">Pengaturan Hasil (Opsional)</span>
+                <span class="text-xs text-slate-400">Klik untuk membuka pengaturan lanjutan</span>
+              </div>
+            </div>
+            <svg id="targetAccordionChevron" class="w-5 h-5 text-slate-400 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+
+          <div id="targetAccordionContent" class="accordion-content">
+            <div class="accordion-inner">
+              <div class="px-5 pb-5 pt-2 border-t border-slate-100 space-y-3">
+                <label for="targetOptionSelect" class="block text-xs font-semibold text-slate-600">
+                  Tentukan Opsi Terpilih Berikutnya:
+                </label>
+                <select
+                  id="targetOptionSelect"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/70 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition"
+                >
+                  <option value="">Acak (Normal)</option>
+                </select>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                  Secara bawaan roda berputar secara acak murni. Jika Anda memilih salah satu opsi di atas, roda akan berhenti secara alami tepat di area segmen tersebut.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </main>
+
+  <!-- MODAL POP-OUT PEMENANG / OPSI TERPILIH -->
+  <div
+    id="winnerModal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="winnerModalTitle"
+    class="fixed inset-0 z-40 hidden items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+  >
+    <div id="winnerModalCard" class="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 overflow-hidden animate-pop-bounce">
+      <!-- Pita Warna Aksen Segmen Terpilih -->
+      <div id="winnerColorBar" class="h-3 w-full bg-indigo-600"></div>
+
+      <div class="p-6 sm:p-8 text-center">
+        <!-- Lencana Piala / Bintang -->
+        <div id="winnerBadgeIcon" class="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-white shadow-lg bg-indigo-600">
+          <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
+            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
+            <path d="M4 22h16"></path>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
+          </svg>
+        </div>
+
+        <p id="winnerModalTitle" class="text-xs font-extrabold uppercase tracking-widest text-slate-400 mb-2">
+          Opsi Terpilih!
+        </p>
+
+        <!-- Kotak Teks Opsi Pemenang -->
+        <div id="winnerTextBox" class="my-3 px-4 py-5 rounded-2xl bg-slate-50 border-2 border-indigo-200">
+          <h3 id="winnerText" class="text-2xl sm:text-3xl font-black text-slate-900 break-words leading-tight">
+            Hadiah Utama
+          </h3>
+        </div>
+
+        <!-- Tombol Aksi Modal -->
+        <div class="mt-6 flex flex-col gap-2.5">
+          <button
+            id="modalSpinAgainBtn"
+            type="button"
+            class="w-full py-3.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm sm:text-base shadow-md shadow-indigo-200 transition active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+            Putar Lagi
+          </button>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button
+              id="modalRemoveOptionBtn"
+              type="button"
+              class="py-3 px-4 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs sm:text-sm transition active:scale-[0.98] cursor-pointer"
+            >
+              Hapus Opsi Ini
+            </button>
+            <button
+              id="modalCloseBtn"
+              type="button"
+              class="py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-semibold text-xs sm:text-sm transition active:scale-[0.98] cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFIKASI (Pengganti alert()) -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    /**
+     * =========================================================================
+     * APLIKASI RODA UNDIAN INTERAKTIF (WHEEL SPIN)
+     * =========================================================================
+     */
+
+    // Palet warna cerah, modern, dan kontras tinggi untuk segmen roda
+    const SEGMENT_PALETTE = [
+      '#EF4444', // Merah Coral
+      '#F59E0B', // Kuning Amber
+      '#10B981', // Hijau Emerald
+      '#3B82F6', // Biru Cerah
+      '#8B5CF6', // Ungu Violet
+      '#EC4899', // Merah Muda Rose
+      '#06B6D4', // Biru Cyan
+      '#F97316', // Oranye
+      '#6366F1', // Indigo
+      '#14B8A6', // Teal
+      '#84CC16', // Hijau Lime
+      '#D946EF'  // Fuchsia
+    ];
+
+    // Daftar opsi awal bawaan
+    const DEFAULT_OPTIONS = [
+      'Hadiah Utama',
+      'Voucher 100K',
+      'Kopi Gratis',
+      'Diskon 50%',
+      'Bonus Spesial',
+      'Coba Lagi'
+    ];
+
+    // Kunci Penyimpanan Lokal
+    const STORAGE_KEY_OPTIONS = 'spin_wheel_options_v1';
+    const STORAGE_KEY_MUTED = 'spin_wheel_muted_v1';
+    const STORAGE_KEY_HISTORY = 'spin_wheel_history_v1';
+
+    // State Aplikasi
+    let options = [];
+    let targetOptionId = null; // null = Acak (Normal)
+    let isSpinning = false;
+    let currentAngle = 0; // Sudut rotasi roda dalam radian
+    let pointerAngle = 0; // Sudut defleksi jarum penunjuk dalam derajat
+    let isMuted = false;
+    let activeTab = 'list'; // 'list' | 'bulk'
+    let lastWinner = null;
+    let spinHistory = [];
+
+    // Referensi Elemen DOM
+    const wheelContainer = document.getElementById('wheelContainer');
+    const wheelCanvas = document.getElementById('wheelCanvas');
+    const ctx = wheelCanvas.getContext('2d');
+    const wheelPointer = document.getElementById('wheelPointer');
+    const centerSpinBtn = document.getElementById('centerSpinBtn');
+    const mainSpinBtn = document.getElementById('mainSpinBtn');
+    const mainSpinBtnText = document.getElementById('mainSpinBtnText');
+    const optionCountBadge = document.getElementById('optionCountBadge');
+
+    // Kontrol Suara
+    const soundToggleBtn = document.getElementById('soundToggleBtn');
+    const soundOnIcon = document.getElementById('soundOnIcon');
+    const soundOffIcon = document.getElementById('soundOffIcon');
+    const soundLabel = document.getElementById('soundLabel');
+
+    // Kontrol Editor Opsi
+    const tabListBtn = document.getElementById('tabListBtn');
+    const tabBulkBtn = document.getElementById('tabBulkBtn');
+    const listEditorPanel = document.getElementById('listEditorPanel');
+    const bulkEditorPanel = document.getElementById('bulkEditorPanel');
+    const optionsListContainer = document.getElementById('optionsListContainer');
+    const newOptionInput = document.getElementById('newOptionInput');
+    const addOptionBtn = document.getElementById('addOptionBtn');
+    const bulkTextarea = document.getElementById('bulkTextarea');
+    const clearBulkBtn = document.getElementById('clearBulkBtn');
+    const shuffleBtn = document.getElementById('shuffleBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    // Kontrol Pengaturan Hasil (Target)
+    const targetAccordionBtn = document.getElementById('targetAccordionBtn');
+    const targetAccordionContent = document.getElementById('targetAccordionContent');
+    const targetAccordionChevron = document.getElementById('targetAccordionChevron');
+    const targetOptionSelect = document.getElementById('targetOptionSelect');
+
+    // Kontrol Modal Pemenang
+    const winnerModal = document.getElementById('winnerModal');
+    const winnerColorBar = document.getElementById('winnerColorBar');
+    const winnerBadgeIcon = document.getElementById('winnerBadgeIcon');
+    const winnerTextBox = document.getElementById('winnerTextBox');
+    const winnerText = document.getElementById('winnerText');
+    const modalSpinAgainBtn = document.getElementById('modalSpinAgainBtn');
+    const modalRemoveOptionBtn = document.getElementById('modalRemoveOptionBtn');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+    // Canvas Konfeti
+    const confettiCanvas = document.getElementById('confettiCanvas');
+    const confettiCtx = confettiCanvas.getContext('2d');
+    let confettiParticles = [];
+    let confettiAnimId = null;
+
+    // Kontrol Riwayat Putaran
+    const historySection = document.getElementById('historySection');
+    const historyList = document.getElementById('historyList');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+    function savePersistedState() {
+      try {
+        localStorage.setItem(STORAGE_KEY_OPTIONS, JSON.stringify(options));
+        localStorage.setItem(STORAGE_KEY_MUTED, JSON.stringify(isMuted));
+        localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(spinHistory));
+      } catch (e) {
+        // Abaikan jika localStorage tidak tersedia
+      }
+    }
+
+    function renderHistory() {
+      if (!spinHistory.length) {
+        historySection.classList.add('hidden');
+        historyList.innerHTML = '';
+        return;
+      }
+
+      historySection.classList.remove('hidden');
+      historyList.innerHTML = '';
+
+      spinHistory.forEach((item) => {
+        const badge = document.createElement('span');
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200/80 max-w-[180px]';
+
+        const dot = document.createElement('span');
+        dot.className = 'w-2.5 h-2.5 rounded-full shrink-0';
+        dot.style.backgroundColor = item.color;
+
+        const label = document.createElement('span');
+        label.className = 'truncate';
+        label.textContent = item.text;
+
+        badge.appendChild(dot);
+        badge.appendChild(label);
+        historyList.appendChild(badge);
+      });
+    }
+
+    /**
+     * =========================================================================
+     * WEB AUDIO API - SINTESIS EFEK SUARA (TICK & KEMENANGAN)
+     * =========================================================================
+     */
+    let audioCtx = null;
+
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    /**
+     * Memainkan suara ketukan mekanis halus saat jarum melewati batas segmen
+     */
+    function playTickSound(speedFactor = 1) {
+      if (isMuted) return;
+      try {
+        ensureAudioContext();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        // Nada klik pendek dengan sedikit variasi berdasarkan kecepatan roda
+        const baseFreq = 620 + Math.min(240, speedFactor * 180);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(baseFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(180, now + 0.032);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.038);
+      } catch (e) {
+        // Abaikan jika browser memblokir audio sebelum interaksi penuh
+      }
+    }
+
+    /**
+     * Memainkan suara fanfare kemenangan saat roda berhenti
+     */
+    function playWinSound() {
+      if (isMuted) return;
+      try {
+        ensureAudioContext();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+        // Akor mayor ceria: C5, E5, G5, C6
+        const notes = [523.25, 659.25, 783.99, 1046.50];
+
+        notes.forEach((freq, idx) => {
+          const startTime = now + idx * 0.09;
+          const duration = idx === notes.length - 1 ? 0.65 : 0.35;
+
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, startTime);
+
+          gain.gain.setValueAtTime(0.001, startTime);
+          gain.gain.linearRampToValueAtTime(0.22, startTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc.start(startTime);
+          osc.stop(startTime + duration + 0.02);
+        });
+      } catch (e) {
+        // Abaikan error audio
+      }
+    }
+
+    /**
+     * =========================================================================
+     * UTILITAS & NOTIFIKASI TOAST
+     * =========================================================================
+     */
+    function generateId() {
+      return 'opt_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+    }
+
+    /**
+     * Menampilkan pesan notifikasi non-intrusif di pojok kanan bawah
+     */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+
+      const colors = {
+        info: 'bg-slate-800 text-white border-slate-700',
+        warning: 'bg-amber-600 text-white border-amber-500',
+        success: 'bg-emerald-600 text-white border-emerald-500'
+      };
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-2xl shadow-lg border text-xs sm:text-sm font-medium flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+      toast.textContent = message;
+
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 2800);
+    }
+
+    /**
+     * Mengambil warna segmen berdasarkan indeks agar warna bersebelahan selalu kontras
+     */
+    function getSegmentColor(index, total) {
+      let colorIdx = index % SEGMENT_PALETTE.length;
+      // Hindari segmen terakhir memiliki warna yang sama dengan segmen pertama (indeks 0)
+      if (index === total - 1 && total > 1 && colorIdx === 0) {
+        colorIdx = 2;
+      }
+      return SEGMENT_PALETTE[colorIdx];
+    }
+
+    /**
+     * =========================================================================
+     * PERHITUNGAN SUDUT & PENGGAMBARAN RODA (HTML5 CANVAS)
+     * =========================================================================
+     */
+
+    /**
+     * Mengatur ukuran canvas agar tajam di layar Retina / HiDPI dan responsif
+     */
+    function resizeWheelCanvas() {
+      const rect = wheelContainer.getBoundingClientRect();
+      const size = Math.max(240, Math.floor(rect.width));
+      const dpr = window.devicePixelRatio || 1;
+
+      wheelCanvas.width = size * dpr;
+      wheelCanvas.height = size * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      drawWheel();
+    }
+
+    /**
+     * Menghitung indeks segmen yang saat ini berada tepat di bawah jarum penunjuk atas (3*PI / 2)
+     */
+    function getSegmentIndexAtPointer(angleRad) {
+      const count = options.length;
+      if (count === 0) return -1;
+
+      const TWO_PI = Math.PI * 2;
+      const POINTER_ANGLE = (3 * Math.PI) / 2; // Posisi jam 12 (270 derajat)
+      const sliceAngle = TWO_PI / count;
+
+      // Sudut lokal roda yang sejajar dengan jarum atas
+      const localAngle = (((POINTER_ANGLE - angleRad) % TWO_PI) + TWO_PI) % TWO_PI;
+      return Math.floor(localAngle / sliceAngle) % count;
+    }
+
+    /**
+     * Menggambar seluruh visual roda putar ke HTML5 Canvas
+     */
+    function drawWheel() {
+      const dpr = window.devicePixelRatio || 1;
+      const size = wheelCanvas.width / dpr;
+      const center = size / 2;
+      const outerRadius = center - 6;
+      const wheelRadius = outerRadius - 12;
+
+      ctx.clearRect(0, 0, size, size);
+
+      const count = options.length;
+      if (count === 0) return;
+
+      const sliceAngle = (Math.PI * 2) / count;
+
+      // 1. Bingkai Luar (Outer Rim)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(center, center, outerRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#1E293B';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. Menggambar Setiap Segmen Roda
+      for (let i = 0; i < count; i++) {
+        const startAngle = currentAngle + i * sliceAngle;
+        const endAngle = startAngle + sliceAngle;
+        const fillColor = getSegmentColor(i, count);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, wheelRadius, startAngle, endAngle);
+        ctx.closePath();
+
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+
+        // Garis pemisah antar segmen
+        ctx.lineWidth = count > 24 ? 1 : 2;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.stroke();
+
+        // 3. Menggambar Teks Opsi di Dalam Segmen
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(startAngle + sliceAngle / 2);
+
+        // Penyesuaian ukuran font otomatis berdasarkan jumlah opsi dan diameter roda
+        const maxFontSize = Math.max(12, Math.floor(wheelRadius * 0.088));
+        const arcThickness = wheelRadius * sliceAngle * 0.52;
+        const dynamicFontSize = Math.max(9.5, Math.min(maxFontSize, Math.floor(arcThickness)));
+
+        ctx.font = `700 ${dynamicFontSize}px Inter, sans-serif`;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+
+        // Bayangan tipis pada teks agar sangat terbaca di semua warna latar
+        ctx.shadowColor = 'rgba(15, 23, 42, 0.35)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 1;
+
+        const label = options[i].text.trim() || `Opsi ${i + 1}`;
+        const innerHubMargin = Math.max(48, wheelRadius * 0.28);
+        const outerRimMargin = 18;
+        const maxTextWidth = Math.max(40, wheelRadius - innerHubMargin - outerRimMargin);
+
+        // Potong teks dengan elipsis jika melebihi ruang segmen
+        let displayLabel = label;
+        if (ctx.measureText(displayLabel).width > maxTextWidth) {
+          while (displayLabel.length > 1 && ctx.measureText(displayLabel + '…').width > maxTextWidth) {
+            displayLabel = displayLabel.slice(0, -1);
+          }
+          displayLabel += '…';
+        }
+
+        ctx.fillText(displayLabel, wheelRadius - outerRimMargin, 0);
+        ctx.restore();
+        ctx.restore();
+      }
+
+      // 4. Pasak / Pin Kecil di Pinggiran Setiap Batas Segmen (Memberi kesan mekanis realistis)
+      for (let i = 0; i < count; i++) {
+        const pegAngle = currentAngle + i * sliceAngle;
+        const pegDist = outerRadius - 6;
+        const px = center + Math.cos(pegAngle) * pegDist;
+        const py = center + Math.sin(pegAngle) * pegDist;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(px, py, count > 30 ? 2 : 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#F8FAFC';
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    /**
+     * =========================================================================
+     * LOGIKA PUTARAN RODA & PERHITUNGAN TARGET HASIL
+     * =========================================================================
+     */
+    function spinWheel() {
+      if (isSpinning) return;
+
+      if (options.length < 2) {
+        showToast('Tambahkan minimal 2 opsi untuk memutar roda!', 'warning');
+        return;
+      }
+
+      // Tutup modal pemenang jika masih terbuka
+      closeWinnerModal();
+      ensureAudioContext();
+
+      isSpinning = true;
+      updateSpinControlsState();
+
+      const count = options.length;
+      const TWO_PI = Math.PI * 2;
+      const POINTER_ANGLE = (3 * Math.PI) / 2; // Posisi atas (270 derajat)
+      const sliceAngle = TWO_PI / count;
+
+      const startAngle = currentAngle;
+      const currentRemainder = ((startAngle % TWO_PI) + TWO_PI) % TWO_PI;
+
+      // Jumlah putaran penuh (6 hingga 8 putaran)
+      const extraSpins = 6 + Math.floor(Math.random() * 3);
+      let deltaRotation = 0;
+
+      // Cek apakah pengguna memilih opsi target spesifik di panel opsional
+      const targetIndex = targetOptionId
+        ? options.findIndex((opt) => opt.id === targetOptionId)
+        : -1;
+
+      if (targetIndex !== -1) {
+        // MODE TARGET: Hitung sudut berhenti tepat di dalam segmen targetIndex
+        // Beri variasi acak 18% - 82% dari lebar segmen agar posisi berhenti terlihat alami
+        const naturalOffset = 0.18 + Math.random() * 0.64;
+        const targetLocalAngle = (targetIndex + naturalOffset) * sliceAngle;
+
+        // Kita ingin: (finalAngle + targetLocalAngle) mod 2PI == POINTER_ANGLE
+        const desiredRemainder = (((POINTER_ANGLE - targetLocalAngle) % TWO_PI) + TWO_PI) % TWO_PI;
+        const forwardDelta = (((desiredRemainder - currentRemainder) % TWO_PI) + TWO_PI) % TWO_PI;
+
+        deltaRotation = extraSpins * TWO_PI + forwardDelta;
+      } else {
+        // MODE ACAK (NORMAL): Tambah sudut acak penuh
+        const randomOffset = Math.random() * TWO_PI;
+        deltaRotation = extraSpins * TWO_PI + randomOffset;
+      }
+
+      const finalAngle = startAngle + deltaRotation;
+      const duration = 4600; // ~4.6 detik putaran realistis
+      const startTime = performance.now();
+
+      let lastTickIndex = getSegmentIndexAtPointer(startAngle);
+      let prevFrameAngle = startAngle;
+
+      // Fungsi Easing Quintic/Quartic Out untuk perlambatan yang mulus dan dramatis
+      function easeOutQuartic(t) {
+        return 1 - Math.pow(1 - t, 4.2);
+      }
+
+      function animateSpin(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = easeOutQuartic(progress);
+
+        currentAngle = startAngle + deltaRotation * eased;
+        const angularVelocity = Math.abs(currentAngle - prevFrameAngle);
+        prevFrameAngle = currentAngle;
+
+        // Deteksi perpindahan segmen di bawah jarum untuk efek suara & getaran jarum
+        const currentSegIndex = getSegmentIndexAtPointer(currentAngle);
+        if (currentSegIndex !== lastTickIndex) {
+          lastTickIndex = currentSegIndex;
+          // Defleksikan jarum berlawanan arah putaran roda
+          pointerAngle = -Math.min(28, Math.max(14, angularVelocity * 140));
+          playTickSound(angularVelocity * 12);
+        }
+
+        // Kembalikan sudut jarum secara elastis menuju 0 derajat
+        pointerAngle *= 0.82;
+        if (Math.abs(pointerAngle) < 0.2) pointerAngle = 0;
+        wheelPointer.style.transform = `translateX(-50%) rotate(${pointerAngle.toFixed(2)}deg)`;
+
+        drawWheel();
+
+        if (progress < 1) {
+          requestAnimationFrame(animateSpin);
+        } else {
+          // Putaran selesai
+          currentAngle = finalAngle;
+          pointerAngle = 0;
+          wheelPointer.style.transform = 'translateX(-50%) rotate(0deg)';
+          drawWheel();
+
+          isSpinning = false;
+          updateSpinControlsState();
+
+          const winningIndex = getSegmentIndexAtPointer(currentAngle);
+          const winningOption = options[winningIndex];
+          const winningColor = getSegmentColor(winningIndex, count);
+
+          if (winningOption) {
+            handleWin(winningOption, winningColor);
+          }
+        }
+      }
+
+      requestAnimationFrame(animateSpin);
+    }
+
+    function updateSpinControlsState() {
+      centerSpinBtn.disabled = isSpinning;
+      mainSpinBtn.disabled = isSpinning;
+      mainSpinBtnText.textContent = isSpinning ? 'SEDANG BERPUTAR...' : 'PUTAR RODA SEKARANG';
+
+      // Kunci perubahan opsi selama roda berputar agar hasil tidak bergeser
+      newOptionInput.disabled = isSpinning;
+      addOptionBtn.disabled = isSpinning;
+      bulkTextarea.disabled = isSpinning;
+      clearBulkBtn.disabled = isSpinning;
+      shuffleBtn.disabled = isSpinning;
+      resetBtn.disabled = isSpinning;
+      targetOptionSelect.disabled = isSpinning;
+    }
+
+    /**
+     * =========================================================================
+     * POP-OUT PEMENANG & EFEK KONFETI
+     * =========================================================================
+     */
+    function handleWin(winningOption, color) {
+      lastWinner = {
+        id: winningOption.id,
+        text: winningOption.text.trim() || 'Opsi Terpilih',
+        color: color
+      };
+
+      // Simpan ke riwayat putaran terakhir (maksimal 8 entri)
+      spinHistory.unshift({ text: lastWinner.text, color: lastWinner.color });
+      if (spinHistory.length > 8) {
+        spinHistory = spinHistory.slice(0, 8);
+      }
+      renderHistory();
+      savePersistedState();
+
+      // Terapkan warna aksen segmen ke modal pemenang
+      winnerColorBar.style.backgroundColor = color;
+      winnerBadgeIcon.style.backgroundColor = color;
+      winnerTextBox.style.borderColor = color;
+      winnerText.textContent = lastWinner.text;
+
+      // Tampilkan modal pop-out
+      winnerModal.classList.remove('hidden');
+      winnerModal.classList.add('flex');
+
+      // Putar efek suara kemenangan & luncurkan konfeti
+      playWinSound();
+      launchConfetti();
+
+      // Fokuskan tombol utama modal untuk aksesibilitas keyboard
+      setTimeout(() => modalSpinAgainBtn.focus(), 60);
+    }
+
+    function closeWinnerModal() {
+      winnerModal.classList.add('hidden');
+      winnerModal.classList.remove('flex');
+    }
+
+    /**
+     * Sistem Partikel Konfeti Meriah di Layar Penuh
+     */
+    function launchConfetti() {
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+
+      const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4'];
+      confettiParticles = [];
+
+      for (let i = 0; i < 130; i++) {
+        confettiParticles.push({
+          x: confettiCanvas.width * (0.2 + Math.random() * 0.6),
+          y: confettiCanvas.height * 0.45,
+          vx: (Math.random() - 0.5) * 16,
+          vy: -Math.random() * 14 - 4,
+          size: Math.random() * 8 + 5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rotationSpeed: (Math.random() - 0.5) * 12,
+          gravity: 0.35 + Math.random() * 0.15,
+          drag: 0.985,
+          alpha: 1
+        });
+      }
+
+      if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+
+      function renderConfetti() {
+        confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+        let activeCount = 0;
+        for (const p of confettiParticles) {
+          p.vx *= p.drag;
+          p.vy += p.gravity;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rotation += p.rotationSpeed;
+
+          if (p.y > confettiCanvas.height * 0.85) {
+            p.alpha -= 0.025;
+          }
+
+          if (p.alpha > 0 && p.y < confettiCanvas.height + 30) {
+            activeCount++;
+            confettiCtx.save();
+            confettiCtx.globalAlpha = Math.max(0, p.alpha);
+            confettiCtx.translate(p.x, p.y);
+            confettiCtx.rotate((p.rotation * Math.PI) / 180);
+            confettiCtx.fillStyle = p.color;
+            confettiCtx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size * 0.55);
+            confettiCtx.restore();
+          }
+        }
+
+        if (activeCount > 0) {
+          confettiAnimId = requestAnimationFrame(renderConfetti);
+        } else {
+          confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+        }
+      }
+
+      confettiAnimId = requestAnimationFrame(renderConfetti);
+    }
+
+    /**
+     * =========================================================================
+     * SINKRONISASI DAFTAR OPSI, TEXTAREA, & DROPDOWN TARGET
+     * =========================================================================
+     */
+    function syncAllUI(skipTextarea = false) {
+      // Perbarui badge jumlah opsi
+      optionCountBadge.textContent = `${options.length} Opsi Aktif`;
+
+      // Render daftar input individual
+      renderOptionsList();
+
+      // Sinkronisasi textarea Edit Cepat (kecuali saat pengguna sedang mengetik di textarea)
+      if (!skipTextarea) {
+        bulkTextarea.value = options.map((o) => o.text).join('\n');
+      }
+
+      // Perbarui opsi dropdown Pengaturan Hasil (Opsional)
+      renderTargetDropdown();
+
+      // Gambar ulang roda
+      drawWheel();
+
+      // Simpan perubahan ke localStorage
+      savePersistedState();
+    }
+
+    function renderOptionsList() {
+      optionsListContainer.innerHTML = '';
+
+      options.forEach((opt, index) => {
+        const color = getSegmentColor(index, options.length);
+
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 group';
+
+        // Indikator titik warna segmen
+        const colorDot = document.createElement('span');
+        colorDot.className = 'w-4 h-4 rounded-full shrink-0 shadow-inner border border-black/10';
+        colorDot.style.backgroundColor = color;
+
+        // Input teks opsi
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = 45;
+        input.value = opt.text;
+        input.placeholder = `Opsi ${index + 1}`;
+        input.className = 'flex-1 px-3 py-2 rounded-xl border border-slate-200 text-sm text-slate-800 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition';
+
+        input.addEventListener('input', (e) => {
+          opt.text = e.target.value;
+          bulkTextarea.value = options.map((o) => o.text).join('\n');
+          renderTargetDropdown();
+          drawWheel();
+          savePersistedState();
+        });
+
+        // Tombol hapus opsi
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.title = 'Hapus opsi ini';
+        delBtn.className = 'p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition shrink-0';
+        delBtn.innerHTML = `
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18"></path>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+          </svg>
+        `;
+
+        delBtn.addEventListener('click', () => {
+          removeOptionById(opt.id);
+        });
+
+        row.appendChild(colorDot);
+        row.appendChild(input);
+        row.appendChild(delBtn);
+        optionsListContainer.appendChild(row);
+      });
+    }
+
+    function renderTargetDropdown() {
+      // Simpan nilai pilihan saat ini
+      const prevTarget = targetOptionId;
+
+      targetOptionSelect.innerHTML = '<option value="">Acak (Normal)</option>';
+
+      let targetStillExists = false;
+      options.forEach((opt, idx) => {
+        const optionEl = document.createElement('option');
+        optionEl.value = opt.id;
+        const label = opt.text.trim() || `Opsi ${idx + 1}`;
+        optionEl.textContent = `${idx + 1}. ${label}`;
+        if (opt.id === prevTarget) {
+          optionEl.selected = true;
+          targetStillExists = true;
+        }
+        targetOptionSelect.appendChild(optionEl);
+      });
+
+      if (!targetStillExists) {
+        targetOptionId = null;
+        targetOptionSelect.value = '';
+      }
+    }
+
+    function addOption(textValue) {
+      if (isSpinning) return;
+      const cleaned = (textValue || '').trim();
+      const newText = cleaned || `Opsi ${options.length + 1}`;
+
+      options.push({
+        id: generateId(),
+        text: newText
+      });
+
+      syncAllUI();
+
+      // Gulir otomatis ke bawah daftar opsi
+      optionsListContainer.scrollTop = optionsListContainer.scrollHeight;
+    }
+
+    function removeOptionById(id) {
+      if (isSpinning) return false;
+      if (options.length <= 2) {
+        showToast('Minimal harus ada 2 opsi di dalam roda.', 'warning');
+        return false;
+      }
+
+      options = options.filter((o) => o.id !== id);
+      if (targetOptionId === id) {
+        targetOptionId = null;
+      }
+
+      syncAllUI();
+      return true;
+    }
+
+    /**
+     * =========================================================================
+     * EVENT LISTENERS INTERAKSI PENGGUNA
+     * =========================================================================
+     */
+    // Tombol Putar (Tengah Roda & Tombol Utama)
+    centerSpinBtn.addEventListener('click', spinWheel);
+    mainSpinBtn.addEventListener('click', spinWheel);
+
+    // Pintasan Keyboard (Spasi untuk memutar roda jika tidak sedang mengetik di input)
+    document.addEventListener('keydown', (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!winnerModal.classList.contains('hidden')) {
+          closeWinnerModal();
+          spinWheel();
+        } else {
+          spinWheel();
+        }
+      } else if (e.code === 'Escape' && !winnerModal.classList.contains('hidden')) {
+        closeWinnerModal();
+      }
+    });
+
+    // Toggle Suara
+    function applySoundUI() {
+      soundOnIcon.classList.toggle('hidden', isMuted);
+      soundOffIcon.classList.toggle('hidden', !isMuted);
+      soundLabel.textContent = isMuted ? 'Suara Mati' : 'Suara Aktif';
+    }
+
+    soundToggleBtn.addEventListener('click', () => {
+      isMuted = !isMuted;
+      applySoundUI();
+      savePersistedState();
+      if (!isMuted) {
+        ensureAudioContext();
+        playTickSound(1);
+      }
+    });
+
+    // Bersihkan Riwayat Putaran
+    clearHistoryBtn.addEventListener('click', () => {
+      spinHistory = [];
+      renderHistory();
+      savePersistedState();
+      showToast('Riwayat putaran dibersihkan.', 'info');
+    });
+
+    // Navigasi Tab: Daftar Opsi vs Edit Cepat
+    tabListBtn.addEventListener('click', () => {
+      activeTab = 'list';
+      tabListBtn.className = 'py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold bg-white text-indigo-600 shadow-sm transition';
+      tabBulkBtn.className = 'py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 transition';
+      listEditorPanel.classList.remove('hidden');
+      bulkEditorPanel.classList.add('hidden');
+      syncAllUI();
+    });
+
+    tabBulkBtn.addEventListener('click', () => {
+      activeTab = 'bulk';
+      tabBulkBtn.className = 'py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold bg-white text-indigo-600 shadow-sm transition';
+      tabListBtn.className = 'py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 transition';
+      bulkEditorPanel.classList.remove('hidden');
+      listEditorPanel.classList.add('hidden');
+      bulkTextarea.value = options.map((o) => o.text).join('\n');
+    });
+
+    // Tambah Opsi dari Input & Tombol
+    addOptionBtn.addEventListener('click', () => {
+      addOption(newOptionInput.value);
+      newOptionInput.value = '';
+      newOptionInput.focus();
+    });
+
+    newOptionInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addOption(newOptionInput.value);
+        newOptionInput.value = '';
+      }
+    });
+
+    // Sinkronisasi Real-Time saat Mengetik di Edit Cepat (Per Baris)
+    bulkTextarea.addEventListener('input', () => {
+      const lines = bulkTextarea.value
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      const bulkLineHint = document.getElementById('bulkLineHint');
+      if (lines.length < 2) {
+        bulkLineHint.textContent = 'Ketik minimal 2 baris opsi agar roda diperbarui';
+        bulkLineHint.classList.add('text-amber-600', 'font-semibold');
+        return;
+      }
+
+      bulkLineHint.textContent = `${lines.length} opsi terdeteksi`;
+      bulkLineHint.classList.remove('text-amber-600', 'font-semibold');
+
+      // Pertahankan ID opsi lama jika indeksnya cocok agar target dropdown tetap stabil
+      options = lines.map((line, idx) => ({
+        id: options[idx] ? options[idx].id : generateId(),
+        text: line
+      }));
+
+      syncAllUI(true);
+    });
+
+    clearBulkBtn.addEventListener('click', () => {
+      options = [
+        { id: generateId(), text: 'Opsi 1' },
+        { id: generateId(), text: 'Opsi 2' }
+      ];
+      targetOptionId = null;
+      syncAllUI();
+      showToast('Daftar diatur ulang menjadi 2 opsi dasar.', 'info');
+    });
+
+    // Tombol Acak Urutan (Fisher-Yates Shuffle)
+    shuffleBtn.addEventListener('click', () => {
+      if (isSpinning) return;
+      for (let i = options.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [options[i], options[j]] = [options[j], options[i]];
+      }
+      syncAllUI();
+      showToast('Urutan opsi berhasil diacak!', 'info');
+    });
+
+    // Tombol Reset Default
+    resetBtn.addEventListener('click', () => {
+      if (isSpinning) return;
+      options = DEFAULT_OPTIONS.map((text) => ({ id: generateId(), text }));
+      targetOptionId = null;
+      currentAngle = 0;
+      syncAllUI();
+      showToast('Opsi dikembalikan ke pengaturan awal.', 'info');
+    });
+
+    // Akordeon Pengaturan Hasil (Opsional)
+    targetAccordionBtn.addEventListener('click', () => {
+      const isOpen = targetAccordionContent.classList.toggle('open');
+      targetAccordionBtn.setAttribute('aria-expanded', String(isOpen));
+      targetAccordionChevron.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    });
+
+    targetOptionSelect.addEventListener('change', (e) => {
+      targetOptionId = e.target.value || null;
+    });
+
+    // Tombol-tombol di Dalam Pop-Out Modal Pemenang
+    modalSpinAgainBtn.addEventListener('click', () => {
+      closeWinnerModal();
+      spinWheel();
+    });
+
+    modalRemoveOptionBtn.addEventListener('click', () => {
+      if (lastWinner) {
+        const removed = removeOptionById(lastWinner.id);
+        if (removed) {
+          showToast(`"${lastWinner.text}" telah dihapus dari roda.`, 'success');
+          closeWinnerModal();
+        }
+      }
+    });
+
+    modalCloseBtn.addEventListener('click', closeWinnerModal);
+
+    // Klik di luar kartu modal untuk menutup pop-out
+    winnerModal.addEventListener('click', (e) => {
+      if (e.target === winnerModal) {
+        closeWinnerModal();
+      }
+    });
+
+    // Responsif saat ukuran kontainer roda berubah
+    const resizeObserver = new ResizeObserver(() => {
+      resizeWheelCanvas();
+    });
+    resizeObserver.observe(wheelContainer);
+
+    window.addEventListener('resize', () => {
+      if (confettiCanvas.width > 0) {
+        confettiCanvas.width = window.innerWidth;
+        confettiCanvas.height = window.innerHeight;
+      }
+    });
+
+    // Inisialisasi Aplikasi saat Halaman Dimuat
+    function initApp() {
+      try {
+        const savedOptions = JSON.parse(localStorage.getItem(STORAGE_KEY_OPTIONS) || 'null');
+        if (Array.isArray(savedOptions) && savedOptions.length >= 2) {
+          options = savedOptions.map((o, idx) => ({
+            id: typeof o?.id === 'string' && o.id ? o.id : generateId(),
+            text: typeof o?.text === 'string' ? o.text : `Opsi ${idx + 1}`
+          }));
+        } else {
+          options = DEFAULT_OPTIONS.map((text) => ({ id: generateId(), text }));
+        }
+
+        const savedMuted = JSON.parse(localStorage.getItem(STORAGE_KEY_MUTED) || 'false');
+        isMuted = Boolean(savedMuted);
+
+        const savedHistory = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '[]');
+        if (Array.isArray(savedHistory)) {
+          spinHistory = savedHistory.filter((item) => item && typeof item.text === 'string' && typeof item.color === 'string').slice(0, 8);
+        }
+      } catch (e) {
+        options = DEFAULT_OPTIONS.map((text) => ({ id: generateId(), text }));
+      }
+
+      applySoundUI();
+      renderHistory();
+      syncAllUI();
+      resizeWheelCanvas();
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
