@@ -1,11 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  DEFAULT_OPTIONS,
-  getSegmentColor,
-  type WheelOption,
-} from "@/lib/spin-wheel";
+import { getSegmentColor, type WheelOption } from "@/lib/spin-wheel";
 
 interface OptionsEditorProps {
   options: WheelOption[];
@@ -13,8 +9,6 @@ interface OptionsEditorProps {
   onAddOption: (text: string) => void;
   onUpdateOption: (id: string, text: string) => void;
   onRemoveOption: (id: string) => void;
-  onBulkUpdate: (lines: string[]) => void;
-  onClearBulk: () => void;
   onShuffle: () => void;
   onReset: () => void;
 }
@@ -25,17 +19,10 @@ export function OptionsEditor({
   onAddOption,
   onUpdateOption,
   onRemoveOption,
-  onBulkUpdate,
-  onClearBulk,
   onShuffle,
   onReset,
 }: OptionsEditorProps) {
-  const [activeTab, setActiveTab] = useState<"list" | "bulk">("list");
   const [newOptionText, setNewOptionText] = useState("");
-  const [bulkText, setBulkText] = useState(() =>
-    options.map((o) => o.text).join("\n")
-  );
-  const [bulkWarning, setBulkWarning] = useState<string | null>(null);
 
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const newInputRef = useRef<HTMLInputElement | null>(null);
@@ -52,33 +39,6 @@ export function OptionsEditor({
       }
     });
   };
-
-  const handleBulkChange = (value: string) => {
-    setBulkText(value);
-    if (isSpinning) return;
-
-    const lines = value
-      .split("\n")
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-
-    setBulkWarning(
-      lines.length === 1 ? "Tambahkan minimal 2 baris opsi untuk memutar roda" : null
-    );
-    onBulkUpdate(lines);
-  };
-
-  const handleClearBulk = () => {
-    if (isSpinning) return;
-    onClearBulk();
-    setBulkText("");
-    setBulkWarning(null);
-  };
-
-  const detectedBulkCount = bulkText
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0).length;
 
   return (
     <aside className="lg:col-span-5 flex flex-col gap-5">
@@ -113,13 +73,9 @@ export function OptionsEditor({
             </button>
             <button
               type="button"
-              onClick={() => {
-                onReset();
-                setBulkText(DEFAULT_OPTIONS.join("\n"));
-                setBulkWarning(null);
-              }}
+              onClick={onReset}
               disabled={isSpinning}
-              title="Kembalikan ke opsi bawaan"
+              title="Kosongkan daftar opsi"
               className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-600 transition flex items-center gap-1 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <svg
@@ -137,50 +93,18 @@ export function OptionsEditor({
           </div>
         </div>
 
-        {/* Navigasi Tab */}
-        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl mb-4">
-          <button
-            type="button"
-            onClick={() => setActiveTab("list")}
-            className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer ${
-              activeTab === "list"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+        <div>
+          <div
+            ref={listContainerRef}
+            className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar"
           >
-            Daftar Opsi
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setBulkText(options.map((o) => o.text).join("\n"));
-              setBulkWarning(null);
-              setActiveTab("bulk");
-            }}
-            className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer ${
-              activeTab === "bulk"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            Edit Cepat (Per Baris)
-          </button>
-        </div>
-
-        {/* MODE 1: Daftar Opsi Individual */}
-        {activeTab === "list" ? (
-          <div>
-            <div
-              ref={listContainerRef}
-              className="space-y-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar"
-            >
-              {options.length === 0 ? (
-                <div className="py-8 px-4 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-xs sm:text-sm text-slate-400">
-                  Daftar opsi masih kosong. Tambahkan minimal 2 opsi di bawah
-                  untuk memutar roda.
-                </div>
-              ) : (
-                options.map((opt, index) => {
+            {options.length === 0 ? (
+              <div className="py-8 px-4 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-xs sm:text-sm text-slate-400">
+                Daftar opsi masih kosong. Tambahkan minimal 2 opsi di bawah
+                untuk memutar roda.
+              </div>
+            ) : (
+              options.map((opt, index) => {
                 const color = getSegmentColor(index, options.length);
                 return (
                   <div key={opt.id} className="flex items-center gap-2 group">
@@ -219,76 +143,36 @@ export function OptionsEditor({
                   </div>
                 );
               })
-              )}
-            </div>
+            )}
+          </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100 flex gap-2">
-              <input
-                ref={newInputRef}
-                type="text"
-                maxLength={45}
-                value={newOptionText}
-                disabled={isSpinning}
-                onChange={(e) => setNewOptionText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddSubmit();
-                  }
-                }}
-                placeholder="Ketik opsi baru lalu Enter..."
-                className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition disabled:opacity-60"
-              />
-              <button
-                type="button"
-                disabled={isSpinning}
-                onClick={handleAddSubmit}
-                className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition active:scale-95 shrink-0 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <span>+ Tambah Opsi</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* MODE 2: Edit Cepat (Textarea Per Baris) */
-          <div>
-            <label
-              htmlFor="bulkTextarea"
-              className="block text-xs text-slate-500 mb-2"
-            >
-              Masukkan satu opsi per baris (minimal 2 opsi). Perubahan otomatis
-              tersinkronisasi dengan roda:
-            </label>
-            <textarea
-              id="bulkTextarea"
-              rows={11}
-              value={bulkText}
+          <div className="mt-4 pt-3 border-t border-slate-100 flex gap-2">
+            <input
+              ref={newInputRef}
+              type="text"
+              maxLength={45}
+              value={newOptionText}
               disabled={isSpinning}
-              onChange={(e) => handleBulkChange(e.target.value)}
-              placeholder={
-                "Contoh:\nHadiah Utama\nVoucher Belanja\nKopi Gratis\nCoba Lagi"
-              }
-              className="w-full p-3.5 rounded-xl border border-slate-200 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 custom-scrollbar resize-y disabled:opacity-60"
-            />
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-              <span
-                className={
-                  bulkWarning ? "text-amber-600 font-semibold" : undefined
+              onChange={(e) => setNewOptionText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddSubmit();
                 }
-              >
-                {bulkWarning ?? `${detectedBulkCount} opsi terdeteksi`}
-              </span>
-              <button
-                type="button"
-                disabled={isSpinning}
-                onClick={handleClearBulk}
-                className="text-rose-600 hover:underline font-medium disabled:opacity-50 cursor-pointer"
-              >
-                Kosongkan Daftar
-              </button>
-            </div>
+              }}
+              placeholder="Ketik opsi baru lalu Enter..."
+              className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition disabled:opacity-60"
+            />
+            <button
+              type="button"
+              disabled={isSpinning}
+              onClick={handleAddSubmit}
+              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition active:scale-95 shrink-0 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <span>+ Tambah Opsi</span>
+            </button>
           </div>
-        )}
+        </div>
       </div>
     </aside>
   );

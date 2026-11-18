@@ -336,24 +336,6 @@ function SpinWheelClient() {
     return true;
   };
 
-  const handleBulkUpdate = (lines: string[]) => {
-    if (isSpinning) return;
-    const next = lines.map((line, idx) => ({
-      id: options[idx] ? options[idx].id : generateOptionId(),
-      text: line,
-    }));
-    setOptions(next);
-    pushOptionsToServer(next, 250);
-  };
-
-  const handleClearBulk = () => {
-    if (isSpinning) return;
-    const next: WheelOption[] = [];
-    setOptions(next);
-    pushOptionsToServer(next);
-    showToast("Daftar opsi dikosongkan.", "info");
-  };
-
   const handleShuffle = () => {
     if (isSpinning) return;
     const next = [...options];
@@ -490,8 +472,6 @@ function SpinWheelClient() {
             onAddOption={handleAddOption}
             onUpdateOption={handleUpdateOption}
             onRemoveOption={handleRemoveOption}
-            onBulkUpdate={handleBulkUpdate}
-            onClearBulk={handleClearBulk}
             onShuffle={handleShuffle}
             onReset={handleReset}
           />
